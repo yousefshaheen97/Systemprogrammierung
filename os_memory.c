@@ -99,7 +99,7 @@ void frameShrinkIfNeeded(Heap *heap, ProcessID pid){
 	--end;
 	heap->allocFrameEnd[pid] = end;
 
-	// Initialwerte zurücksetzen
+	// Initialwerte zurï¿½cksetzen
 	if (heap->allocFrameStart[pid] >= heap->allocFrameEnd[pid]) {
 		heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 		heap->allocFrameEnd  [pid] = heap->useStart;
@@ -165,10 +165,10 @@ void os_free(Heap* heap, MemAddr addr){
 	while(addr > heap->useStart && os_getMapEntry(heap, addr) == 0xF) {
 		--addr;
 	}
-	// erste nibble in map löschen
+	// erste nibble in map lï¿½schen
 	os_setMapEntry(heap, addr, 0);
 	heap->driver->write(addr, 0);
-	// folgende nibble löschen
+	// folgende nibble lï¿½schen
 	MemAddr heapEnd = heap->useStart + heap->useSize;
 	MemAddr p = addr + 1;
 	while(p < heapEnd && os_getMapEntry(heap, p) == 0xF) {
@@ -280,122 +280,10 @@ void os_freeProcessMemory(Heap* heap, ProcessID pid) {
 			++addr;
 		}
 	}
-	// grenze zurücksetzen
+	// grenze zurï¿½cksetzen
 	heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 	heap->allocFrameEnd  [pid] = heap->useStart;
 }
 
 
 
-
-MemAddr os_realloc(Heap *heap, MemAddr addr, uint16_t newSize){
-	
-	if (addr == 0 || newSize == 0)
-	return 0;
-
-	os_enterCriticalSection();
-	uint8_t pid       = os_getCurrentProc();
-	MemAddr heapStart = heap->useStart;
-	MemAddr heapEnd   = heapStart + heap->useSize;
-
-	// Chunk-Anfang finden
-	MemAddr head = addr;
-	while (head > heapStart && os_getMapEntry(heap, head) == 0xF)
-	head--;
-
-	// Besitzer prüfen
-	if (os_getMapEntry(heap, head) != pid) {
-		os_error("ERROR OWNER");
-		os_leaveCriticalSection();
-		return 0;
-	}
-
-	
-	uint16_t oldLen = 1;
-	for (MemAddr p = head + 1;
-	p < heapEnd && os_getMapEntry(heap, p) == 0xF; p++)
-	oldLen++;
-
-	
-	if (oldLen == newSize) {
-		os_leaveCriticalSection();
-		return head;
-	}
-
-	
-	if (newSize < oldLen) {
-		for (MemAddr p = head + newSize; p < head + oldLen; p++)
-		os_setMapEntry(heap, p, 0);
-		os_leaveCriticalSection();
-		return head;
-	}
-
-	uint16_t need = newSize - oldLen;
-
-	// freie mapbereich rechts zählen
-	uint16_t rightFree = 0;
-	for (MemAddr p = head + oldLen;
-	rightFree < need && p < heapEnd && os_getMapEntry(heap, p) == 0; p++)
-	rightFree++;
-
-	
-	if (rightFree >= need) {
-		for (uint16_t i = 0; i < need; i++)
-		os_setMapEntry(heap, head + oldLen + i, 0xF);
-		os_leaveCriticalSection();
-		return head;
-	}
-
-	// zähle freie map bereich nach links
-	uint16_t leftFree = 0;
-	for (MemAddr p = head;
-	leftFree < need && p > heapStart && os_getMapEntry(heap, p - 1) == 0; )
-	{
-		p--;
-		leftFree++;
-	}
-
-	if (leftFree + rightFree >= need) {
-		
-		uint16_t useLeft = leftFree;               
-		uint16_t useRight = need - useLeft;        
-		MemAddr newHead = head - useLeft;          
-
-		// kopiere use bereich
-		for (uint16_t i = 0; i < oldLen; i++) {
-			MemValue v = heap->driver->read(head + i);
-			heap->driver->write(newHead + i, v);
-		}
-
-		// alte map bereich lösche
-		for (uint16_t i = 0; i < oldLen; i++)
-		os_setMapEntry(heap, head + i, 0);
-
-		// neu map setzen
-		os_setMapEntry(heap, newHead, pid);
-		for (uint16_t i = 1; i < newSize; i++)
-		os_setMapEntry(heap, newHead + i, 0xF);
-
-		// 0xF löschen
-		for (MemAddr p = newHead + newSize;
-		p < heapEnd && os_getMapEntry(heap, p) == 0xF; p++)
-		os_setMapEntry(heap, p, 0);
-
-		// rechts anhängen 
-		for (uint16_t i = 0; i < useRight; i++)
-		os_setMapEntry(heap, newHead + oldLen + i, 0xF);
-
-		os_leaveCriticalSection();
-		return newHead;
-	}
-
-	// Fallback – neuallokieren
-	MemAddr fresh = os_malloc(heap, newSize);
-	if (fresh) {
-		for (uint16_t i = 0; i < oldLen; i++)
-		heap->driver->write(fresh + i, heap->driver->read(head + i));
-		os_free(heap, head);
-	}
-	os_leaveCriticalSection();
-	return fresh;
-}
