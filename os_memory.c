@@ -287,3 +287,147 @@ void os_freeProcessMemory(Heap* heap, ProcessID pid) {
 
 
 
+
+static void move(Heap *heap, MemAddr destination, MemAddr source, uint16_t length) {
+	if (destination == source || length == 0) return;
+
+	if (destination < source) {
+		for (uint16_t i = 0; i < length; ++i) {
+			heap->driver->write(destination + i, heap->driver->read(source + i));
+		}
+		} else {
+		for (uint16_t i = length; i > 0; --i) {
+			heap->driver->write(destination + i - 1, heap->driver->read(source + i - 1));
+		}
+	}
+}
+
+MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size){
+	if (addr == 0) {
+		return os_malloc(heap, size);
+	}
+
+	if (size == 0) {
+		os_free(heap, addr);
+		return 0;
+	}
+
+	os_enterCriticalSection();
+
+	ProcessID pid = os_getCurrentProc();
+	if (os_getMapEntry(heap, addr) != pid) {
+		os_leaveCriticalSection();
+		os_error("NOT OWNER");
+		return 0;
+	}
+
+	uint16_t oldSize = 1;
+	MemAddr scan = addr + 1;
+	MemAddr heapEnd = heap->useStart + heap->useSize;
+	while (scan < heapEnd && os_getMapEntry(heap, scan) == 0xF) {
+		++oldSize;
+		++scan;
+	}
+
+	if (size == oldSize) {
+		os_leaveCriticalSection();
+		return addr;
+	}
+
+
+	if (size < oldSize) {
+		for (uint16_t i = size; i < oldSize && addr + i < heapEnd; ++i) {
+			os_setMapEntry(heap, addr + i, 0);
+			heap->driver->write(addr + i, 0);
+		}
+
+		if (addr + oldSize >= heap->allocFrameEnd[pid]) {
+			frameShrinkIfNeeded(heap, pid);
+		}
+
+		os_leaveCriticalSection();
+		return addr;
+	}
+
+	uint16_t difference = size - oldSize;
+
+	uint16_t rightFree = 0;
+	MemAddr p = addr + oldSize;
+	while (p < heapEnd && os_getMapEntry(heap, p) == 0) {
+		++rightFree;
+		++p;
+		if (rightFree >= difference) break;
+	}
+
+	uint16_t leftFree = 0;
+	p = addr;
+	while (p > heap->useStart && os_getMapEntry(heap, p - 1) == 0) {
+		++leftFree;
+		--p;
+	}
+
+	if (rightFree >= difference) {
+		for (uint16_t i = 0; i < difference; ++i) {
+			os_setMapEntry(heap, addr + oldSize + i, 0xF);
+		}
+		frameExtend(heap, pid, addr, size);
+		os_leaveCriticalSection();
+		return addr;
+	}
+
+	if (leftFree >= difference) {
+		MemAddr newStart = addr - leftFree;
+
+		move(heap, newStart, addr, oldSize);
+
+		for (MemAddr a = newStart + size; a < addr + oldSize; ++a) {
+			os_setMapEntry(heap, a, 0);
+			heap->driver->write(a, 0);
+		}
+
+		for (uint16_t i = 0; i < size; ++i) {
+			os_setMapEntry(heap, newStart + i, (i == 0) ? pid : 0xF);
+		}
+
+		addr = newStart;
+		frameExtend(heap, pid, addr, size);
+		os_leaveCriticalSection();
+		return addr;
+	}
+
+	if (leftFree + rightFree >= difference) {
+		MemAddr newStartAddr = addr - leftFree;
+
+		move(heap, newStartAddr, addr, oldSize);
+
+		for (uint16_t i = 0; i < oldSize; ++i) {
+			MemAddr a = addr + i;
+			if (a < newStartAddr || a >= newStartAddr + size) {
+				os_setMapEntry(heap, a, 0);
+				heap->driver->write(a, 0);
+			}
+		}
+
+		for (uint16_t i = 0; i < size; ++i) {
+			os_setMapEntry(heap, newStartAddr + i, (i == 0) ? pid : 0xF);
+		}
+
+		addr = newStartAddr;
+		frameExtend(heap, pid, addr, size);
+		os_leaveCriticalSection();
+		return addr;
+	}
+
+	os_leaveCriticalSection();
+
+	MemAddr newAddr = os_malloc(heap, size);
+	if (!newAddr) {
+		return 0;
+	}
+
+	for (uint16_t i = 0; i < oldSize && i < size; ++i) {
+		heap->driver->write(newAddr + i, heap->driver->read(addr + i));
+	}
+	os_free(heap, addr);
+	return newAddr;
+}
