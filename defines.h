@@ -30,7 +30,7 @@
 //----------------------------------------------------------------------------
 
 //! The current id of the exercise (this must be changed every two weeks).
-#define VERSUCH 4
+#define VERSUCH 5
 
 //----------------------------------------------------------------------------
 // System constants
@@ -70,7 +70,7 @@
 
 
 
-#define HEAPOFFSET 300 
+#define HEAPOFFSET 400 
 
 
 // intheap werte
