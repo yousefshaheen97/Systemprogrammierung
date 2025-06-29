@@ -100,24 +100,52 @@ ISR(TIMER2_COMPA_vect) {
 
 	if (schedulingStrategy == OS_SS_EVEN) {
 		currentProc = os_Scheduler_Even(os_processes, currentProc);
-		} else if (schedulingStrategy == OS_SS_ROUND_ROBIN)
-		{
-			currentProc = os_Scheduler_RoundRobin(os_processes, currentProc);
-		} else if (schedulingStrategy == OS_SS_INACTIVE_AGING)
-		{
-			currentProc = os_Scheduler_InactiveAging(os_processes, currentProc);
-		}else if (schedulingStrategy == OS_SS_RUN_TO_COMPLETION)
-		{
-			currentProc = os_Scheduler_RunToCompletion(os_processes, currentProc);
-		}
-		 else {
+		} else if (schedulingStrategy == OS_SS_ROUND_ROBIN) {
+		currentProc = os_Scheduler_RoundRobin(os_processes, currentProc);
+		} else if (schedulingStrategy == OS_SS_INACTIVE_AGING) {
+		currentProc = os_Scheduler_InactiveAging(os_processes, currentProc);
+		} else if (schedulingStrategy == OS_SS_RUN_TO_COMPLETION) {
+		currentProc = os_Scheduler_RunToCompletion(os_processes, currentProc);
+		} else if (schedulingStrategy == OS_SS_MULTI_LEVEL_FEEDBACK_QUEUE) {
+		currentProc = os_Scheduler_MLFQ(os_processes, currentProc);
+		} else {
 		currentProc = os_Scheduler_Random(os_processes, currentProc);
 	}
+	
+	////////////////////////////////////
+	bool readyFound = false;
+	ProcessID blockedPid = INVALID_PROCESS;
+	for (ProcessID i = 1; i < MAX_NUMBER_OF_PROCESSES; i++) {
+		if (os_processes[i].state == OS_PS_READY) {
+			readyFound = true;
+			break;
+			} else if (os_processes[i].state == OS_PS_BLOCKED) {
+			blockedPid = i;
+		}
+	}
+	if (!readyFound && blockedPid != INVALID_PROCESS) {
+		currentProc = blockedPid;
+	}
+	/////////////////////////////////////////////////
+	
 	
 	if (os_processes[currentProc].checksum != os_getStackChecksum(currentProc))
 	{
 		os_error("ERROR: INVALID CHECKSUM");
 	}
+	
+	
+	/////////////////////////////////////
+	for (ProcessID i = 0; i < MAX_NUMBER_OF_PROCESSES; i++) {
+		if (os_processes[i].state == OS_PS_BLOCKED) {
+			os_processes[i].state = OS_PS_READY;
+		}
+	}
+	/////////////////////////////////////////
+	
+	
+	
+	
 	
 	// 7: ändere stand zu running
 	
@@ -237,6 +265,7 @@ void os_initScheduler(void){
 		os_processes[i].state = OS_PS_UNUSED;
 	}
 	// idle = proc 0
+	os_initSchedulingInformation();
 	os_exec(idle, DEFAULT_PRIORITY);
 
 	while(autostart_head != NULL){
@@ -405,7 +434,55 @@ bool os_kill(ProcessID pid){
 	 os_freeProcessMemory(intHeap, pid);
 	 os_freeProcessMemory(extHeap, pid);
 	 os_leaveCriticalSection();
-	 while (currentProc == pid){
+	 /*while (currentProc == pid){
+	 } */
+	 if(pid == os_getCurrentProc()){
+		 os_yield();
 	 }
+	 
+	 
 	 return true;
 }
+
+
+
+
+void os_yield(void){
+	
+	 os_enterCriticalSection();
+
+	 // aktuelle prozess blocken
+	 uint8_t current = os_getCurrentProc();
+	 if (os_processes[current].state != OS_PS_UNUSED) {
+		 os_processes[current].state = OS_PS_BLOCKED;
+	 }
+
+	 // speichern
+	 uint8_t savedCount = criticalSectionCount;
+	 uint8_t savedSREG  = SREG;
+
+	 
+	 criticalSectionCount = 0;
+
+	 
+	 cli();
+
+	 // scheduler auslosen
+	 TIMSK2 = TIMSK2 | (1 << OCIE2A);  
+	 TIMER2_COMPA_vect();               
+	 TIMSK2 = TIMSK2 & ~(1 << OCIE2A);  
+
+	 // sreg wiederherstellen
+	 SREG = savedSREG;
+
+	 // kb zähler zurücksetzen
+	 criticalSectionCount = savedCount;
+
+	 
+	 os_leaveCriticalSection();
+}
+
+
+
+
+

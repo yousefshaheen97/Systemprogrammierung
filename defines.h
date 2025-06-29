@@ -70,7 +70,7 @@
 
 
 
-#define HEAPOFFSET 400
+#define HEAPOFFSET 300 
 
 
 // intheap werte
