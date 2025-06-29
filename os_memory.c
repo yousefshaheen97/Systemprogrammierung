@@ -99,7 +99,7 @@ void frameShrinkIfNeeded(Heap *heap, ProcessID pid){
 	--end;
 	heap->allocFrameEnd[pid] = end;
 
-	// Initialwerte zur�cksetzen
+	// Initialwerte zurücksetzen
 	if (heap->allocFrameStart[pid] >= heap->allocFrameEnd[pid]) {
 		heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 		heap->allocFrameEnd  [pid] = heap->useStart;
@@ -162,13 +162,18 @@ void os_free(Heap* heap, MemAddr addr){
 		os_leaveCriticalSection();
 		return;
 	}
+	if (os_getMapEntry(heap, addr) >= MEMORY_SHARED_CLOSED){
+		os_error("Shared Memory");
+		os_leaveCriticalSection();
+		return;
+	}
 	while(addr > heap->useStart && os_getMapEntry(heap, addr) == 0xF) {
 		--addr;
 	}
-	// erste nibble in map l�schen
+	// erste nibble in map löschen
 	os_setMapEntry(heap, addr, 0);
 	heap->driver->write(addr, 0);
-	// folgende nibble l�schen
+	// folgende nibble löschen
 	MemAddr heapEnd = heap->useStart + heap->useSize;
 	MemAddr p = addr + 1;
 	while(p < heapEnd && os_getMapEntry(heap, p) == 0xF) {
@@ -213,7 +218,7 @@ uint16_t os_getChunkSize (Heap const* heap, MemAddr addr){
 	if (addr >= heapEnd) {
 		return 0;
 	}
-
+		
 	MemAddr chunkStart = addr;
 	while (chunkStart > heap->useStart) {
 		uint8_t mark = os_getMapEntry(heap, chunkStart);
@@ -280,11 +285,10 @@ void os_freeProcessMemory(Heap* heap, ProcessID pid) {
 			++addr;
 		}
 	}
-	// grenze zur�cksetzen
+	// grenze zurücksetzen
 	heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 	heap->allocFrameEnd  [pid] = heap->useStart;
 }
-
 
 
 
@@ -430,4 +434,224 @@ MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size){
 	}
 	os_free(heap, addr);
 	return newAddr;
+}
+
+
+
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////
+
+
+
+
+static uint16_t os_sh_getChunkSize(Heap const* heap, MemAddr addr){
+	
+	
+	// berechne anfangs des chunk
+	if (addr == 0 || addr < heap->useStart || addr >= heap->useStart + heap->useSize){
+		return 0;
+	}
+	MemAddr start = addr;
+	while(start > heap->useStart){
+		uint8_t mark = os_getMapEntry(heap, start);
+		if(mark == MEMORY_FOLLOWS || mark == MEMORY_SHARED_FOLLOWS){
+			start--;
+			}else{
+			break;
+		}
+	}
+
+	uint8_t firstMark = os_getMapEntry(heap, start);
+	if(firstMark == MEMORY_FREE || firstMark == MEMORY_FOLLOWS || firstMark == MEMORY_SHARED_FOLLOWS){
+		return 0;
+	}
+	// berechne größe des chunk
+	MemAddr heapEnd = heap->useStart + heap->useSize;
+	MemAddr current = start;
+	while(current < heapEnd){
+		uint8_t mark = os_getMapEntry(heap, current);
+		if(mark == MEMORY_FREE){
+			break;
+		}
+		current++;
+	}
+	return current - start;
+}
+
+MemAddr os_sh_malloc(Heap* heap, uint16_t size){
+
+	os_enterCriticalSection();
+	// finde freie speicher
+	MemAddr addr = os_malloc(heap, size);
+	// map bereich resevieren
+	if(addr){
+		os_setMapEntry(heap, addr, MEMORY_SHARED_CLOSED);
+		for(MemAddr i = 1; i < size; ++i){
+			os_setMapEntry(heap, addr + i, MEMORY_SHARED_FOLLOWS);
+		}
+	}
+	os_leaveCriticalSection();
+	return addr;
+}
+
+void os_sh_free(Heap* heap, MemAddr* ptr){
+	
+	os_enterCriticalSection();
+	// finde anfang des chunkn
+	MemAddr addr = *ptr;
+	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+		addr--;
+	}
+	uint8_t start = os_getMapEntry(heap, addr);
+	if(start < MEMORY_SHARED_CLOSED || start > MEMORY_SHARED_WRITE){
+		os_error("NOT SHARED MEMORY");
+		os_leaveCriticalSection();
+		return;
+	}
+	while(start != MEMORY_SHARED_CLOSED){
+		
+		os_yield();
+		while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+			addr--;
+		}
+		start = os_getMapEntry(heap, addr);
+	}
+	uint16_t size = os_sh_getChunkSize(heap, addr);
+	for(uint16_t i = 0; i < size; ++i){
+		os_setMapEntry(heap, addr + i, MEMORY_FREE);
+	}
+	os_leaveCriticalSection();
+	*ptr = 0;
+}
+
+MemAddr os_sh_readOpen(Heap const* heap, MemAddr const* ptr){
+	
+	os_enterCriticalSection();
+	MemAddr addr = *ptr;
+	// finde chunks anfang
+	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+		addr--;
+	}
+	// checke if shared memory
+	uint8_t start = os_getMapEntry(heap, addr);
+	if(start < MEMORY_SHARED_CLOSED || start > MEMORY_SHARED_WRITE){
+		os_error("ERROR: NOT SHARED MEMORY");
+		os_leaveCriticalSection();
+		return 0;
+	}
+	while(start > MEMORY_SHARED_READ_1){
+		os_yield();
+		while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+			addr--;
+		}
+		start = os_getMapEntry(heap, addr);
+	}
+	// ändere status von mapbereich
+	if(start == MEMORY_SHARED_CLOSED){
+		os_setMapEntry(heap, addr, MEMORY_SHARED_READ_1);
+		} else if(start == MEMORY_SHARED_READ_1){
+		os_setMapEntry(heap, addr, MEMORY_SHARED_READ_2);
+		} else {
+		os_leaveCriticalSection();
+		return 0;
+	}
+	addr = *ptr;
+	os_leaveCriticalSection();
+	return addr;
+}
+
+MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const* ptr){
+	
+	os_enterCriticalSection();
+	MemAddr addr = *ptr;
+	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+		addr--;
+	}
+	uint8_t start = os_getMapEntry(heap, addr);
+	if(start < MEMORY_SHARED_CLOSED || start > MEMORY_SHARED_WRITE){
+		os_error("ERROR: NOT SHARED MEMORY");
+		os_leaveCriticalSection();
+		
+		return 0;
+	}
+	
+	while (start != MEMORY_SHARED_CLOSED){
+		os_yield();
+		while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+			addr--;
+		}
+		start = os_getMapEntry(heap, addr);
+	}
+	
+	os_setMapEntry(heap, addr, MEMORY_SHARED_WRITE);
+	
+	addr = *ptr;
+	os_leaveCriticalSection();
+	return addr;
+}
+
+void os_sh_close(Heap const* heap, MemAddr addr){
+	os_enterCriticalSection();
+	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
+		addr--;
+	}
+	uint8_t start = os_getMapEntry(heap, addr);
+	
+	if(start == MEMORY_SHARED_WRITE || start == MEMORY_SHARED_READ_1){
+		os_setMapEntry(heap, addr, MEMORY_SHARED_CLOSED);
+		} else if(start == MEMORY_SHARED_READ_2){
+		os_setMapEntry(heap, addr, MEMORY_SHARED_READ_1);
+	}
+	os_leaveCriticalSection();
+}
+
+
+
+void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue const* dataSrc, uint16_t length){
+	
+	MemAddr base = os_sh_writeOpen(heap, ptr);
+	
+	
+	uint16_t size = os_sh_getChunkSize(heap, base);
+	
+	
+	
+	
+	
+	if(offset + length > size){
+		os_error("INVALID SIZE");
+		os_sh_close(heap, base);
+		return;
+	}
+	for(uint16_t i = 0; i < length; ++i){
+		heap->driver->write(base + offset + i, dataSrc[i]);
+	}
+	os_sh_close(heap, base);
+}
+
+
+
+
+void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue* dataDest, uint16_t length){
+	
+	MemAddr base = os_sh_readOpen(heap, ptr);
+	
+	uint16_t size = os_getChunkSize(heap, base);
+	if((offset + length) > size){
+		os_error("INVALID SIZE");
+		os_sh_close(heap, base);
+		return;
+	}
+	for(uint16_t i = 0; i < length; ++i){
+		dataDest[i] = heap->driver->read(base + offset + i);
+	}
+	os_sh_close(heap, base);
+	
 }
