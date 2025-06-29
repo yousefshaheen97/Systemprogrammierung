@@ -651,35 +651,32 @@ void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue*
 static uint16_t os_sh_getChunkSize(Heap const* heap, MemAddr addr){
 	
 	
-	// berechne anfangs des chunk
-	if (addr == 0 || addr < heap->useStart || addr >= heap->useStart + heap->useSize){
+	if (addr == 0 || addr < heap->useStart || addr >= heap->useStart + heap->useSize) {
 		return 0;
 	}
+
 	MemAddr start = addr;
-	while(start > heap->useStart){
+	while (start > heap->useStart) {
 		uint8_t mark = os_getMapEntry(heap, start);
-		if(mark == MEMORY_FOLLOWS || mark == MEMORY_SHARED_FOLLOWS){
-			start--;
-			}else{
+		if (mark == MEMORY_FOLLOWS || mark == MEMORY_SHARED_FOLLOWS) {
+			--start;
+			} else {
 			break;
 		}
 	}
 
-	uint8_t firstMark = os_getMapEntry(heap, start);
-	if(firstMark == MEMORY_FREE || firstMark == MEMORY_FOLLOWS || firstMark == MEMORY_SHARED_FOLLOWS){
+	uint8_t startMark = os_getMapEntry(heap, start);
+	if (startMark < MEMORY_SHARED_CLOSED || startMark > MEMORY_SHARED_WRITE) {
 		return 0;
 	}
-	// berechne größe des chunk
+
+	MemAddr current = start + 1;
 	MemAddr heapEnd = heap->useStart + heap->useSize;
-	MemAddr current = start;
-	while(current < heapEnd){
-		uint8_t mark = os_getMapEntry(heap, current);
-		if(mark == MEMORY_FREE){
-			break;
-		}
-		current++;
+	while (current < heapEnd && os_getMapEntry(heap, current) == MEMORY_SHARED_FOLLOWS) {
+		++current;
 	}
-	return current - start;
+
+	return (uint16_t)(current - start);
 }
 
 MemAddr os_sh_malloc(Heap* heap, uint16_t size){
@@ -840,7 +837,7 @@ void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue*
 	
 	MemAddr base = os_sh_readOpen(heap, ptr);
 	
-	uint16_t size = os_getChunkSize(heap, base);
+	uint16_t size = os_sh_getChunkSize(heap, base);
 	if((offset + length) > size){
 		os_error("INVALID SIZE");
 		os_sh_close(heap, base);
