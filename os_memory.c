@@ -522,67 +522,68 @@ void os_sh_free(Heap* heap, MemAddr* ptr){
 MemAddr os_sh_readOpen(Heap const* heap, MemAddr const* ptr){
 	
 	os_enterCriticalSection();
-	MemAddr addr = *ptr;
-	// finde chunks anfang
-	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
-		addr--;
+	MemAddr start = *ptr;
+	// finde chunk start
+	while(start > heap->useStart && os_getMapEntry(heap, start) == MEMORY_SHARED_FOLLOWS){
+		--start;
 	}
-	// checke if shared memory
-	uint8_t start = os_getMapEntry(heap, addr);
-	if(start < MEMORY_SHARED_CLOSED || start > MEMORY_SHARED_WRITE){
+	
+	uint8_t mark = os_getMapEntry(heap, start);
+	if(mark < MEMORY_SHARED_CLOSED || mark > MEMORY_SHARED_WRITE){
 		os_error("ERROR: NOT SHARED MEMORY");
 		os_leaveCriticalSection();
 		return 0;
 	}
-	while(start > MEMORY_SHARED_READ_1){
+	// warte bis read zugelassen ist
+	while(mark > MEMORY_SHARED_READ_1){
 		os_yield();
-		while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
-			addr--;
+		while(start > heap->useStart && os_getMapEntry(heap, start) == MEMORY_SHARED_FOLLOWS){
+			--start;
 		}
-		start = os_getMapEntry(heap, addr);
+		mark = os_getMapEntry(heap, start);
 	}
-	// ändere status von mapbereich
-	if(start == MEMORY_SHARED_CLOSED){
-		os_setMapEntry(heap, addr, MEMORY_SHARED_READ_1);
-		} else if(start == MEMORY_SHARED_READ_1){
-		os_setMapEntry(heap, addr, MEMORY_SHARED_READ_2);
+	// aktuallisiere mapbereich status
+	if(mark == MEMORY_SHARED_CLOSED){
+		os_setMapEntry(heap, start, MEMORY_SHARED_READ_1);
+		} else if(mark == MEMORY_SHARED_READ_1){
+		os_setMapEntry(heap, start, MEMORY_SHARED_READ_2);
 		} else {
 		os_leaveCriticalSection();
 		return 0;
 	}
-	addr = *ptr;
+
 	os_leaveCriticalSection();
-	return addr;
+	return start;
 }
 
 MemAddr os_sh_writeOpen(Heap const* heap, MemAddr const* ptr){
 	
 	os_enterCriticalSection();
-	MemAddr addr = *ptr;
-	while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
-		addr--;
+	MemAddr start = *ptr;
+	
+	while(start > heap->useStart && os_getMapEntry(heap, start) == MEMORY_SHARED_FOLLOWS){
+		--start;
 	}
-	uint8_t start = os_getMapEntry(heap, addr);
-	if(start < MEMORY_SHARED_CLOSED || start > MEMORY_SHARED_WRITE){
+	uint8_t mark = os_getMapEntry(heap, start);
+	if(mark < MEMORY_SHARED_CLOSED || mark > MEMORY_SHARED_WRITE){
 		os_error("ERROR: NOT SHARED MEMORY");
 		os_leaveCriticalSection();
-		
+
 		return 0;
 	}
-	
-	while (start != MEMORY_SHARED_CLOSED){
+
+	while (mark != MEMORY_SHARED_CLOSED){
 		os_yield();
-		while(addr > heap->useStart && os_getMapEntry(heap, addr) == MEMORY_SHARED_FOLLOWS){
-			addr--;
+		while(start > heap->useStart && os_getMapEntry(heap, start) == MEMORY_SHARED_FOLLOWS){
+			--start;
 		}
-		start = os_getMapEntry(heap, addr);
+		mark = os_getMapEntry(heap, start);
 	}
-	
-	os_setMapEntry(heap, addr, MEMORY_SHARED_WRITE);
-	
-	addr = *ptr;
+
+	os_setMapEntry(heap, start, MEMORY_SHARED_WRITE);
+
 	os_leaveCriticalSection();
-	return addr;
+	return start;
 }
 
 void os_sh_close(Heap const* heap, MemAddr addr){
