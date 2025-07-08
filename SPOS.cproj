@@ -29,21 +29,21 @@
     <eraseonlaunchrule>0</eraseonlaunchrule>
     <EraseKey />
     <avrtool>com.atmel.avrdbg.tool.jtagice3plus</avrtool>
-    <avrtoolserialnumber>J30200042792</avrtoolserialnumber>
+    <avrtoolserialnumber>J30200031946</avrtoolserialnumber>
     <avrdeviceexpectedsignature>0x1E9609</avrdeviceexpectedsignature>
     <com_atmel_avrdbg_tool_jtagice3plus>
       <ToolOptions>
         <InterfaceProperties>
-          <JtagDbgClock>1983654</JtagDbgClock>
+          <JtagDbgClock>2112077</JtagDbgClock>
         </InterfaceProperties>
         <InterfaceName>JTAG</InterfaceName>
       </ToolOptions>
       <ToolType>com.atmel.avrdbg.tool.jtagice3plus</ToolType>
-      <ToolNumber>J30200042792</ToolNumber>
+      <ToolNumber>J30200031946</ToolNumber>
       <ToolName>JTAGICE3</ToolName>
     </com_atmel_avrdbg_tool_jtagice3plus>
     <avrtoolinterface>JTAG</avrtoolinterface>
-    <avrtoolinterfaceclock>1983654</avrtoolinterfaceclock>
+    <avrtoolinterfaceclock>2112077</avrtoolinterfaceclock>
     <AsfFrameworkConfig>
       <framework-data xmlns="">
         <options />
@@ -157,6 +157,30 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="lcd.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_draw.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_draw.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_paneldriver.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_paneldriver.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_patterns.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_patterns.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_snake.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="led_snake.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.c">

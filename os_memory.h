@@ -41,6 +41,7 @@ AllocStrategy os_getAllocationStrategy(Heap const* heap);
 void os_freeProcessMemory(Heap* heap, ProcessID pid);
 MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size);
 
+
 /////////////////////////////////////////////////////////
 
 #define MEMORY_FREE                0x0
@@ -66,6 +67,10 @@ void os_sh_close(Heap const* heap, MemAddr addr);
 void os_sh_write(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue const* dataSrc, uint16_t length);
 
 void os_sh_read(Heap const* heap, MemAddr const* ptr, uint16_t offset, MemValue* dataDest, uint16_t length);
+
+
+
+
 
 
 

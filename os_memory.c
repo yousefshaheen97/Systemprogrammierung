@@ -99,7 +99,7 @@ void frameShrinkIfNeeded(Heap *heap, ProcessID pid){
 	--end;
 	heap->allocFrameEnd[pid] = end;
 
-	// Initialwerte zurÃ¼cksetzen
+	// Initialwerte zurücksetzen
 	if (heap->allocFrameStart[pid] >= heap->allocFrameEnd[pid]) {
 		heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 		heap->allocFrameEnd  [pid] = heap->useStart;
@@ -162,13 +162,18 @@ void os_free(Heap* heap, MemAddr addr){
 		os_leaveCriticalSection();
 		return;
 	}
+	if (os_getMapEntry(heap, addr) >= MEMORY_SHARED_CLOSED){
+		os_error("Shared Memory");
+		os_leaveCriticalSection();
+		return;
+	}
 	while(addr > heap->useStart && os_getMapEntry(heap, addr) == 0xF) {
 		--addr;
 	}
-	// erste nibble in map lÃ¶schen
+	// erste nibble in map löschen
 	os_setMapEntry(heap, addr, 0);
 	heap->driver->write(addr, 0);
-	// folgende nibble lÃ¶schen
+	// folgende nibble löschen
 	MemAddr heapEnd = heap->useStart + heap->useSize;
 	MemAddr p = addr + 1;
 	while(p < heapEnd && os_getMapEntry(heap, p) == 0xF) {
@@ -280,7 +285,7 @@ void os_freeProcessMemory(Heap* heap, ProcessID pid) {
 			++addr;
 		}
 	}
-	// grenze zurÃ¼cksetzen
+	// grenze zurücksetzen
 	heap->allocFrameStart[pid] = heap->useStart + heap->useSize;
 	heap->allocFrameEnd  [pid] = heap->useStart;
 }
@@ -432,12 +437,16 @@ MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size){
 }
 
 
+
+
+
+
+
+
+
+
+
 ///////////////////////////////////////////////
-
-
-
-
-
 
 
 

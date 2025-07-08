@@ -12,7 +12,6 @@ The file contains five strategies:
 */
 
 #include "os_scheduling_strategies.h"
-
 #include "defines.h"
 
 #include <stdlib.h>
@@ -25,14 +24,17 @@ The file contains five strategies:
  *  \param strategy  The strategy to reset information for
  */
 
+
+extern Process os_processes[MAX_NUMBER_OF_PROCESSES];
+
 SchedulingInformation schedulingInfo;
 /////////////////////////////////////////////
 
 extern SchedulingStrategy schedulingStrategy;
 
-// MLFQ constants
+
 #define MLFQ_NUM_QUEUES 4
-#define MLFQ_TIME_SLICES {1, 2, 4, 8}  // Time slices for each priority class
+#define MLFQ_TIME_SLICES {1, 2, 4, 8}  
 
 
 
@@ -55,7 +57,7 @@ void os_resetSchedulingInformation(SchedulingStrategy strategy) {
 		for (int i = 0; i < MAX_NUMBER_OF_PROCESSES; i++) {
 			schedulingInfo.timeSlices[i] = 0;
 		}
-		// Prozesse einsortieren (außer Idle)
+		// prozesse sortieren
 		static const uint8_t timeSlices[MLFQ_NUM_QUEUES] = {1, 2, 4, 8};
 		
 		for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
@@ -79,16 +81,16 @@ void os_resetSchedulingInformation(SchedulingStrategy strategy) {
 void os_resetProcessSchedulingInformation(ProcessID id) {
 	schedulingInfo.age[id] = 0;
 	schedulingInfo.timeSlices[id] = 0;
-	// For MLFQ: Add new process to appropriate queue based on priority
+	
 	if (schedulingStrategy == OS_SS_MULTI_LEVEL_FEEDBACK_QUEUE) {
 		Process* process = os_getProcessSlot(id);
 		if (process && process->state == OS_PS_READY) {
-			// Determine queue based on MSBs of priority (11=highest, 00=lowest)
-			uint8_t queueID = (process->priority >> 6) & 0x03;  // Get the 2 MSBs
+			
+			uint8_t queueID = (process->priority >> 6) & 0x03;  
 			ProcessQueue* queue = MLFQ_getQueue(queueID);
 			if (queue) {
 				pqueue_append(queue, id);
-				// Initialize time slices for this queue
+				
 				static const uint8_t timeSlices[MLFQ_NUM_QUEUES] = {1, 2, 4, 8};
 				schedulingInfo.timeSlices[id] = timeSlices[queueID];
 			}
@@ -99,17 +101,15 @@ void os_resetProcessSchedulingInformation(ProcessID id) {
 ///////////////////////////////////
 
 
-/*!
- *  Initialize scheduling information
- */
+
 void os_initSchedulingInformation(void) {
-	// Initialize all queues
+	// inittialisiere queue
 	for (int i = 0; i < MLFQ_NUM_QUEUES; i++) {
 		pqueue_init(&schedulingInfo.queues[i]);
 	}
 }
 
-// ProcessQueue management functions
+
 
 void pqueue_init(ProcessQueue *queue) {
 	queue->size = MAX_NUMBER_OF_PROCESSES;
@@ -149,32 +149,32 @@ void pqueue_removePID(ProcessQueue *queue, ProcessID pid) {
 		return;
 	}
 	
-	// Find the position of the PID
-	uint8_t pos = queue->tail;
-	uint8_t found_pos = queue->tail;
+	
+	uint8_t position = queue->tail;
+	uint8_t found_position = queue->tail;
 	bool found = false;
 	
-	while (pos != queue->head) {
-		if (queue->data[pos] == pid) {
-			found_pos = pos;
+	while (position != queue->head) {
+		if (queue->data[position] == pid) {
+			found_position = position;
 			found = true;
 			break;
 		}
-		pos = (pos + 1) % queue->size;
+		position = (position + 1) % queue->size;
 	}
 	
 	if (!found) {
 		return;
 	}
 	
-	// Remove the element by shifting all elements after it
-	while (found_pos != queue->head) {
-		uint8_t next_pos = (found_pos + 1) % queue->size;
-		queue->data[found_pos] = queue->data[next_pos];
-		found_pos = next_pos;
+	
+	while (found_position != queue->head) {
+		uint8_t next_position = (found_position + 1) % queue->size;
+		queue->data[found_position] = queue->data[next_position];
+		found_position = next_position;
 	}
 	
-	// Decrement head
+	
 	queue->head = (queue->head - 1 + queue->size) % queue->size;
 }
 
@@ -186,7 +186,7 @@ ProcessQueue* MLFQ_getQueue(uint8_t queueID) {
 }
 
 
-////////////////////////////7
+////////////////////////////
 
 /*!
  *  This function implements the even strategy. Every process gets the same
@@ -203,9 +203,9 @@ ProcessID os_Scheduler_Even(const Process processes[], ProcessID current) {
 	// zähle ready proc
 	uint8_t totalReady = 0;
 	for (ProcessID pid = 0; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
-		if (processes[pid].state == OS_PS_READY) {
+		if (processes[pid].state == OS_PS_READY || processes[pid].state == OS_PS_BLOCKED) {
 			totalReady++;
-		}
+		} 
 	}
 	// Wenn nur idle ready, wähle idle
 	if (totalReady == 1 && processes[0].state == OS_PS_READY) {
@@ -216,6 +216,8 @@ ProcessID os_Scheduler_Even(const Process processes[], ProcessID current) {
 	for (uint8_t offset = 0; offset < MAX_NUMBER_OF_PROCESSES; offset++) {
 		pid = (pid + 1) % MAX_NUMBER_OF_PROCESSES;
 		if (pid != 0 && processes[pid].state == OS_PS_READY) {
+			return pid;
+		} if (processes[pid].state == OS_PS_BLOCKED){
 			return pid;
 		}
 	}
@@ -236,9 +238,9 @@ ProcessID os_Scheduler_Random(const Process processes[], ProcessID current) {
 	// Zähle READY > 0
     uint8_t ready_count = 0;
     for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
-        if (processes[pid].state == OS_PS_READY) {
+        if (processes[pid].state == OS_PS_READY || processes[pid].state == OS_PS_BLOCKED) {
             ready_count++;
-        }
+        } 
     }
     if (ready_count == 0) {
         return 0;
@@ -249,11 +251,22 @@ ProcessID os_Scheduler_Random(const Process processes[], ProcessID current) {
     for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
         if (processes[pid].state == OS_PS_READY) {
             if (r == 0) {
+				if (os_processes[pid].state == OS_PS_BLOCKED)
+				{
+					os_processes[pid].state = OS_PS_READY;
+				}
                 return pid;
             }
             r--;
-        }
+        } 
     }
+	for (uint8_t i = 1; i<MAX_NUMBER_OF_PROCESSES ; i++)
+	{
+		if (os_processes[i].state == OS_PS_BLOCKED)
+		{
+			os_processes[i].state = OS_PS_READY;
+		}
+	}
     
     return 0;
 	
@@ -289,8 +302,17 @@ ProcessID os_Scheduler_RoundRobin(const Process processes[], ProcessID current) 
 		    // reset timeSlice
 		    schedulingInfo.timeSlice = processes[next].priority;
 		    return next;
-	    }
+	    } else if (processes[next].state == OS_PS_BLOCKED) {
+	    continue;
     }
+    }
+	for (uint8_t i = 1; i<MAX_NUMBER_OF_PROCESSES ; i++)
+	{
+		if (os_processes[i].state == OS_PS_BLOCKED)
+		{
+			os_processes[i].state = OS_PS_READY;
+		}
+	}
     return 0;
 }
 
@@ -310,7 +332,7 @@ ProcessID os_Scheduler_InactiveAging(const Process processes[], ProcessID curren
     for (ProcessID i = 1; i < MAX_NUMBER_OF_PROCESSES; i++) {
 	    if (processes[i].state == OS_PS_READY) {
 		    schedulingInfo.age[i] += processes[i].priority;
-	    }
+	    } 
     }
 
     // Ältesten Prozess suchen
@@ -318,8 +340,11 @@ ProcessID os_Scheduler_InactiveAging(const Process processes[], ProcessID curren
     Age      highestAge   = 0;
     Priority highestPrio  = 0;
     for (ProcessID i = 1; i < MAX_NUMBER_OF_PROCESSES; i++) {
-	    if (processes[i].state != OS_PS_READY) continue;
-	    Age      a = schedulingInfo.age[i];
+	    if (processes[i].state == OS_PS_BLOCKED)
+	    continue;
+	    if (processes[i].state != OS_PS_READY)
+	    continue;
+		Age      a = schedulingInfo.age[i];
 	    Priority p = processes[i].priority;
 
 	    if (selected == INVALID_PROCESS) {
@@ -343,6 +368,11 @@ ProcessID os_Scheduler_InactiveAging(const Process processes[], ProcessID curren
 		    }
 	    }
     }
+	if (processes[current].state == OS_PS_BLOCKED && highestAge == 0){
+		schedulingInfo.age[current] = 0;
+		return current;
+	}
+	
 
     // Kein ready proc dann Idle
     if (selected == INVALID_PROCESS) {
@@ -373,130 +403,93 @@ ProcessID os_Scheduler_RunToCompletion(const Process processes[], ProcessID curr
 
 
 //////////////////////////////////////////////////////////////
-ProcessID os_Scheduler_MLFQ(const Process processes[], ProcessID current) {
+ProcessID os_Scheduler_MLFQ(Process const  processes[], ProcessID current) {
 	static const uint8_t timeSlices[MLFQ_NUM_QUEUES] = {1, 2, 4, 8};
 	
-	// If current process is still ready and has time slices remaining, continue with it
+	
 	if (current != 0 && processes[current].state == OS_PS_READY && schedulingInfo.timeSlices[current] > 0) {
 		schedulingInfo.timeSlices[current]--;
 		return current;
 	}
-	// Handle current process when it's no longer ready or has exhausted time slices
+	
 	if (current != 0 && processes[current].state == OS_PS_READY) {
-		// Find which queue the process is currently in
-		uint8_t currentQueue = 0;
-		 bool foundInQueue = false;
+		uint8_t curQ = 0;
+		bool found = false;
 		for (uint8_t q = 0; q < MLFQ_NUM_QUEUES; q++) {
-			ProcessQueue* queue = MLFQ_getQueue(q);
-			if (queue) {
-				uint8_t pos = queue->tail;
-				while (pos != queue->head) {
-					if (queue->data[pos] == current) {
-						currentQueue = q;
-						foundInQueue = true;
-						break;
-					}
-					pos = (pos + 1) % queue->size;
+			ProcessQueue *queue = MLFQ_getQueue(q);
+			if (!queue) continue;
+			uint8_t pos = queue->tail;
+			while (pos != queue->head) {
+				if (queue->data[pos] == current) {
+					curQ = q;
+					found = true;
+					break;
 				}
-				if (foundInQueue) break;
+				pos = (pos + 1) % queue->size;
 			}
+			if (found) break;
 		}
-		
-		if (foundInQueue) {
-			// Remove from current queue
-			ProcessQueue* currentQ = MLFQ_getQueue(currentQueue);
-			if (currentQ) {
-				pqueue_removePID(currentQ, current);
-			}
-			
-			// If process still has time slices, it gave up CPU time early
-			// Add it back to the same queue with remaining time slices
+		if (found) {
+			ProcessQueue *oldQ = MLFQ_getQueue(curQ);
+			pqueue_removePID(oldQ, current);
 			if (schedulingInfo.timeSlices[current] > 0) {
-				pqueue_append(currentQ, current);
+				pqueue_append(oldQ, current);
 				} else {
-				// Process exhausted its time slice, move to lower priority queue
-				uint8_t newQueue = (currentQueue + 1) % MLFQ_NUM_QUEUES;
-				ProcessQueue* newQ = MLFQ_getQueue(newQueue);
-				if (newQ) {
-					pqueue_append(newQ, current);
-					schedulingInfo.timeSlices[current] = timeSlices[newQueue];
-				}
+				uint8_t nextQ = (curQ + 1) % MLFQ_NUM_QUEUES;
+				ProcessQueue *newQ = MLFQ_getQueue(nextQ);
+				pqueue_append(newQ, current);
+				schedulingInfo.timeSlices[current] = timeSlices[nextQ];
 			}
 		}
 	}
-	 // First, check if there are any ready processes that are not in queues
-	 // This can happen if processes were created before MLFQ was set as strategy
-	 for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
-		 if (processes[pid].state == OS_PS_READY) {
-			 // Check if this process is already in any queue
-			 bool inQueue = false;
-			 for (uint8_t q = 0; q < MLFQ_NUM_QUEUES; q++) {
-				 ProcessQueue* queue = MLFQ_getQueue(q);
-				 if (queue) {
-					 uint8_t pos = queue->tail;
-					 while (pos != queue->head) {
-						 if (queue->data[pos] == pid) {
-							 inQueue = true;
-							 break;
-						 }
-						 pos = (pos + 1) % queue->size;
-					 }
-					 if (inQueue) break;
-				 }
-			 }
-			 
-			 // If not in any queue, add it to appropriate queue based on priority
-			 if (!inQueue) {
-				 uint8_t queueID = (processes[pid].priority >> 6) & 0x03;
-				 ProcessQueue* queue = MLFQ_getQueue(queueID);
-				 if (queue) {
-					 pqueue_append(queue, pid);
-					 schedulingInfo.timeSlices[pid] = timeSlices[queueID];
-				 }
-			 }
-		 }
-	 }
-	// Find the highest priority non-empty queue
-	ProcessID selected = INVALID_PROCESS;
-	uint8_t selectedQueue = 0;
 	
-	for (uint8_t queueID = 0; queueID < MLFQ_NUM_QUEUES; queueID++) {
-		ProcessQueue* queue = MLFQ_getQueue(queueID);
+	for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
+		if (processes[pid].state != OS_PS_READY) continue;
+		bool inQ = false;
+		for (uint8_t q = 0; q < MLFQ_NUM_QUEUES; q++) {
+			ProcessQueue *queue = MLFQ_getQueue(q);
+			if (!queue) continue;
+			uint8_t pos = queue->tail;
+			while (pos != queue->head) {
+				if (queue->data[pos] == pid) {
+					inQ = true;
+					break;
+				}
+				pos = (pos + 1) % queue->size;
+			}
+			if (inQ) break;
+		}
+		if (!inQ) {
+			uint8_t qid = (processes[pid].priority >> 6) & 0x03;
+			ProcessQueue *queue = MLFQ_getQueue(qid);
+			pqueue_append(queue, pid);
+			schedulingInfo.timeSlices[pid] = timeSlices[qid];
+		}
+	}
+	
+	ProcessID chosen = INVALID_PROCESS;
+	uint8_t chosenQ = 0;
+	for (uint8_t q = 0; q < MLFQ_NUM_QUEUES; q++) {
+		ProcessQueue *queue = MLFQ_getQueue(q);
 		if (queue && pqueue_hasNext(queue)) {
-			selected = pqueue_getFirst(queue);
-			selectedQueue = queueID;
+			chosen = pqueue_getFirst(queue);
+			chosenQ = q;
 			break;
 		}
 	}
 	
-	// If no process found, return idle
-	if (selected == INVALID_PROCESS) {
-		// Count ready processes to verify
-		uint8_t readyCount = 0;
+	if (chosen == INVALID_PROCESS) {
 		for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
 			if (processes[pid].state == OS_PS_READY) {
-				
-			}
-		}
-		// If there are ready processes but none in queues, something is wrong
-		// Return the first ready process as fallback
-		if (readyCount > 0) {
-			for (ProcessID pid = 1; pid < MAX_NUMBER_OF_PROCESSES; pid++) {
-				if (processes[pid].state == OS_PS_READY) {
-					return pid;
-				}
-				
+				return pid;
 			}
 		}
 		return 0;
 	}
 	
-	// Remove the selected process from its queue
-	ProcessQueue* queue = MLFQ_getQueue(selectedQueue);
+	ProcessQueue *queue = MLFQ_getQueue(chosenQ);
 	pqueue_dropFirst(queue);
+	schedulingInfo.timeSlices[chosen] = timeSlices[chosenQ];
 	
-	// Initialize time slices for the selected process
-	schedulingInfo.timeSlices[selected] = timeSlices[selectedQueue];
-	
-	return selected;
+	return chosen;
 }
