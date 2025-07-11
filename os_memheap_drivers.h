@@ -8,12 +8,12 @@
 
 #ifndef OS_MEMHEAP_DRIVERS_H_
 #define OS_MEMHEAP_DRIVERS_H_
-
+#include "defines.h"
 #include <stdint.h>
 #include <stddef.h>
 #include "os_mem_drivers.h"   
 
-#define MAX_NUMBER_OF_PROCESSES 8
+//#define MAX_NUMBER_OF_PROCESSES 8
 
 
 typedef enum AllocStrategy {

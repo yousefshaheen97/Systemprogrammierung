@@ -6,32 +6,148 @@
 
 #include "led_patterns.h"
 #include "util.h"
+#include "led_paneldriver.h"
+
+
+#define NUM_PLANES 3
+#define NUM_DROWS 16
+#define NUM_COLS 32
+volatile uint8_t frameBuffer[NUM_PLANES][NUM_DROWS][NUM_COLS];
+
 
 //! \brief Distributes bits of given color's channels r, g and b on layers of framebuffer
 void draw_setPixel(uint8_t x, uint8_t y, Color color) {
-#error IMPLEMENT STH. HERE
-    return;
+	 // Koordinaten überprüfen
+	 if (x >= NUM_COLS || y >= NUM_DROWS * 2) {
+		 return; 
+	 }
+
+	 // suche ob untere oder obere hälfte
+	 bool lowerHalf = false;
+	 uint8_t row = y;
+	 if (y >= NUM_DROWS) {
+		 lowerHalf = true;
+		 row = y - NUM_DROWS; 
+	 }
+
+	 
+	 for (uint8_t plane = 0; plane < NUM_PLANES; plane++) {
+		 //  adressiere Framebuffer-Eintrags
+		 volatile uint8_t *cell = &frameBuffer[plane][row][x];
+		 
+		 // maskbit berechnen
+		 uint8_t mask = 1 << (7 - plane);
+		 
+		 // Löschen der Bits für die aktuelle Ebene
+		 if (!lowerHalf) {
+			 // obere Hälfte
+			 *cell &= ~(0x07 << 0);
+			 } else {
+			 // untere Hälfte
+			 *cell &= ~(0x07 << 3);
+		 }
+
+		 // Setze das Pixel in der oberen oder unteren Hälfte der Matrix
+		 if (!lowerHalf) {
+			 
+			 if (color.r & mask) { *cell |= (1 << 0); }
+			 
+			 if (color.g & mask) { *cell |= (1 << 1); }
+			 
+			 if (color.b & mask) { *cell |= (1 << 2); }
+			 } else {
+			 
+			 if (color.r & mask) { *cell |= (1 << 3); }
+			
+			 if (color.g & mask) { *cell |= (1 << 4); }
+			 
+			 if (color.b & mask) { *cell |= (1 << 5); }
+		 }
+	 }
+	
+/* #error IMPLEMENT STH. HERE
+    return; */
 }
 
 //! \brief Reconstructs RGB-Color from layers of framebuffer
 Color draw_getPixel(uint8_t x, uint8_t y) {
-#warning IMPLEMENT STH. HERE
-    return (Color){};
+
+	// Initialisiere die Farbwerte mit 0
+	Color color = {0, 0, 0};
+
+	// Koordinaten überprüfen
+	if (x >= NUM_COLS || y >= NUM_DROWS * 2) {
+		return color; 
+	}
+
+	// suche ob untere oder obere hälfte
+	bool lowerHalf = false;
+	uint8_t row = y;
+	if (y >= NUM_DROWS) {
+		lowerHalf = true;
+		row = y - NUM_DROWS; 
+	}
+
+	
+	for (uint8_t plane = 0; plane < NUM_PLANES; plane++) {
+		// Lese den Wert aus dem Framebuffer
+		uint8_t cell = frameBuffer[plane][row][x];
+		// Berechne Maskenbit
+		uint8_t mask = 1 << (7 - plane);
+
+		// Extrahiere Farbkanäle je nach Hälfte
+		if (!lowerHalf) {
+			// obere Hälfte
+			if (cell & 0x01) color.r |= mask; 
+			if (cell & 0x02) color.g |= mask; 
+			if (cell & 0x04) color.b |= mask; 
+			} else {
+			// untere Hälfte
+			if (cell & 0x08) color.r |= mask; 
+			if (cell & 0x10) color.g |= mask; 
+			if (cell & 0x20) color.b |= mask; 
+		}
+	}
+
+	
+	return color;
+
+
+
+/* #warning IMPLEMENT STH. HERE
+    return (Color){}; */
 }
 
 //! \brief Fills whole panel with given color
 void draw_fillPanel(Color color) {
-#warning IMPLEMENT STH. HERE
+	// Rechteck über die gesamte Matrix
+	draw_filledRectangle(0, 0, 31, 31, color); 
+	
+//#warning IMPLEMENT STH. HERE
 }
+	
+
+
 
 //! \brief Sets every pixel's color to black
 void draw_clearDisplay() {
-#warning IMPLEMENT STH. HERE
+	Color black = {0,0,0};
+	draw_fillPanel(black);
+	
+	
+//#warning IMPLEMENT STH. HERE
 }
 
 //! \brief Draws Rectangle
 void draw_filledRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, Color color) {
-#warning IMPLEMENT STH. HERE
+	
+	for (uint8_t a = x1; a <= x2; a++) {
+		for (uint8_t b = y1; b <= y2; b++) {
+			draw_setPixel(a, b, color);
+		}
+	}
+	
+//#warning IMPLEMENT STH. HERE
 }
 
 

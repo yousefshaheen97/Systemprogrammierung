@@ -34,13 +34,100 @@ void panel_initTimer() {
     OCR1A = 0x0007;
 }
 
+static uint8_t currentRow = 0;
+static uint8_t currentPlane = 0;
+uint8_t frameBuffer[NUM_PLANES][NUM_DROWS][NUM_COLS];
+
+
 //! \brief Initializes used ports of panel
 void panel_init(){
-#error IMPLEMENT STH. HERE
+	
+		
+		
+		DDRA |= (1 << PA0) | (1 << PA1) | (1 << PA2) | (1 << PA3);  // Row select pins
+		
+		DDRC |= (1 << PC0) | (1 << PC1) | (1 << PC6);               // CLK, LE, OE pins
+		DDRD |= (1 << PD0) | (1 << PD1) | (1 << PD2) | (1 << PD3) | (1 << PD4) | (1 << PD5);  // RGB data pins
+		
+		
+		
+
+	
+	
+//#error IMPLEMENT STH. HERE
 }
+
+void panel_latchEnable(){ 
+	
+	PORTC |= (1 << PC1); 
+	}
+	
+void panel_latchDisable(){ 
+	
+	PORTC &= ~(1 << PC1); 
+	}
+	
+void panel_outputEnable(){ 
+	PORTC &= ~(1 << PC6); 
+	}
+	
+void panel_outputDisable(){ 
+	PORTC |= (1 << PC6); 
+ }
+ 
+void panel_setAddress(uint8_t row){
+	
+	PORTA = (PORTA & 0xF0) | (row & 0x0F); 
+}
+
+void panel_setOutput(uint8_t data){
+	
+	PORTD = (0b00111111 & data); 
+}
+
+void panel_CLK(){
+
+	PORTC |= (1 << PC0); 
+	PORTC &= ~(1 << PC0); 
+}
+
+
 
 
 //! \brief ISR to refresh LED panel, trigger 1 compare match interrupts
 ISR(TIMER1_COMPA_vect) {
-#error IMPLEMENT STH. HERE
+	
+	panel_outputDisable();
+
+	
+	panel_setAddress(currentRow);
+	
+
+	for (uint8_t col = 0; col < NUM_COLS; col++) {
+		
+		uint8_t data = frameBuffer[currentPlane][currentRow][col];
+		panel_setOutput(data);
+		panel_CLK(); 
+	}
+	
+	
+
+	panel_latchEnable();
+	panel_latchDisable();
+
+	
+	panel_outputEnable();
+
+	
+	currentRow++;
+	if (currentRow >= NUM_DROWS) {
+		currentRow = 0;
+		currentPlane++;
+		if (currentPlane >= NUM_PLANES) {
+			currentPlane = 0;
+		}
+	}
+	
+	
+//#error IMPLEMENT STH. HERE
 }

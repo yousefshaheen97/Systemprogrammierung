@@ -19,4 +19,23 @@ void panel_stopTimer(void);
 
 //! Initalizes interrupt timer
 void panel_initTimer(void);
+
+
+// additional helper functions for LED matrix control
+void panel_latchEnable(void);
+void panel_latchDisable(void);
+void panel_outputEnable(void);
+void panel_outputDisable(void);
+void panel_setAddress(uint8_t row);
+void panel_setOutput(uint8_t data);
+void panel_CLK(void);
+
+
+#define NUM_PLANES 3
+#define NUM_DROWS 16
+#define NUM_COLS 32
+
+
+
+
 #endif

@@ -107,6 +107,9 @@ void os_init_timer(void) {
     sbi(TCCR0B, CS02);
 
     sbi(TIMSK0, TOIE0);
+	
+	
+	
 }
 
 /*!
@@ -134,11 +137,18 @@ void os_init(void) {
 		os_error("ERROR ADJUST HEAPOFFSET");
 	}
 	
-	os_initHeaps();
+	//os_initHeaps();
 	
     os_initScheduler();
-
+	
+	
+	
+	
     os_systemTime_reset();
+	
+	
+	
+	
 }
 
 /*!
