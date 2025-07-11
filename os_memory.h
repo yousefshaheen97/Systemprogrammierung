@@ -43,17 +43,18 @@ MemAddr os_realloc(Heap* heap, MemAddr addr, uint16_t size);
 
 
 /////////////////////////////////////////////////////////
-// Map entry definitions
-#define OS_MEM_FREE                0x0
-#define OS_MEM_FOLLOWS             0xF
 
-// Shared memory states (first nibble values)
-#define OS_MEM_SH_CLOSED           0x8
-#define OS_MEM_SH_FOLLOWS          0x9
-#define OS_MEM_SH_READ_ONE         0xA
-#define OS_MEM_SH_READ_MULTI       0xB
-#define OS_MEM_SH_WRITE            0xC
+#define MEMORY_FREE                0x0
+#define MEMORY_FOLLOWS             0xF
 
+
+#define MEMORY_SHARED_CLOSED           0x8
+#define MEMORY_SHARED_FOLLOWS          0x9
+#define MEMORY_SHARED_READ_1         0xA
+#define MEMORY_SHARED_READ_2       0xB
+#define MEMORY_SHARED_WRITE            0xC
+
+////////////////////////////////////////////////////////////
 
 // Shared memory management
 MemAddr os_sh_malloc(Heap* heap, uint16_t size);

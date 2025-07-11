@@ -3,7 +3,7 @@
 #include "os_core.h"
 #include "os_scheduler.h"
 #include "util.h"
-
+#include "led_paneldriver.h"
 #include <avr/pgmspace.h>
 
 //----------------------------------------------------------------------------
@@ -14,8 +14,11 @@
 int main(void) {
     // Give the operating system a chance to initialize its private data.
     // This also registers and starts the idle program.
-    os_init();
-
+	
+	os_init();
+	panel_init();
+	panel_initTimer();
+	
     // os_init shows a boot message
     // Wait and clear the LCD
     delayMs(600);

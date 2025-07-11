@@ -30,7 +30,7 @@
 //----------------------------------------------------------------------------
 
 //! The current id of the exercise (this must be changed every two weeks).
-#define VERSUCH 5
+#define VERSUCH 6
 
 //----------------------------------------------------------------------------
 // System constants
@@ -42,7 +42,7 @@
  *  This number includes the idle proc, although it is considered a system proc.
  *  The idle proc. has always id 0. The highest ID is MAX_NUMBER_OF_PROCESSES-1.
  */
-#define MAX_NUMBER_OF_PROCESSES 8
+#define MAX_NUMBER_OF_PROCESSES 2
 
 //! Standard priority for newly created processes
 #define DEFAULT_PRIORITY 2
@@ -70,7 +70,7 @@
 
 
 
-#define HEAPOFFSET 400 
+#define HEAPOFFSET 4000 
 
 
 // intheap werte

@@ -37,13 +37,13 @@
 #endif
 
 //! DDR of Port connected to LCD
-#define LCD_PORT_DDR DDRA
+#define LCD_PORT_DDR DDRB
 
 //! PORT connected to LCD
-#define LCD_PORT_DATA PORTA
+#define LCD_PORT_DATA PORTB
 
 //! PIN connected to LCD
-#define LCD_PIN PINA
+#define LCD_PIN PINB
 
 //! First value for init
 #define LCD_INIT 0x03
