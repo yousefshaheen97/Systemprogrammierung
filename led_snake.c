@@ -40,8 +40,8 @@ void play_Snake(){
 	js_init();
 	initialize_State_Of_Game();
 	while (1){
-		adjust_State_Of_Game(); // aktualisiere status des spiel je nach spiel umstände
-		if (js_getButton()){  // Prüfe ob buttom gedrükt ist
+		adjust_State_Of_Game(); // aktualisiere status des spiel je nach spiel umstï¿½nde
+		if (js_getButton()){  // Prï¿½fe ob buttom gedrï¿½kt ist
 			stop_Game();
 		}
 		_delay_ms(150);  // spielgeschwindigkeit steuern
@@ -306,7 +306,7 @@ void redraw_Game_Field(){
 
 	// Verfolge den Ringbuffer bis zum Schwanz
 	while (idx != snake_Body.tail) {
-		// Zwei Bit-Positionen zurückspringen
+		// Zwei Bit-Positionen zurï¿½ckspringen
 		if (idx >= 2) {
 			idx = idx - 2;
 			} else {
@@ -442,7 +442,7 @@ void adjust_State_Of_Game(){
 
 
 void walk_Snake(){
-	  // lösche alten kopf
+	  // lï¿½sche alten kopf
 	  draw_setPixel(headX, headY, COLOR_BLACK);
 
 	  if (snake_Direction == RIGHT) {
@@ -475,7 +475,7 @@ void adjust_Snake_Direction(Direction newDirection){
 
 
 void adjust_Snake_Buffer(){
-	// Nur wenn schlange länge grösser als 1 hat
+	// Nur wenn schlange lï¿½nge grï¿½sser als 1 hat
 	if (lenght_Of_Snake > 1) {
 		// kopfzeiger um 2 bewegen
 		snake_Body.head += 2;
@@ -517,7 +517,7 @@ void adjust_Snake_Buffer(){
 			}
 		}
 
-		// isFoodEaten zurücksetzen
+		// isFoodEaten zurï¿½cksetzen
 		isFoodEaten = 0;
 	}
 }
@@ -550,7 +550,7 @@ uint8_t load_Snake_Buffer_Bit_Pair(uint16_t bitPairPosition){
 		pair = (byteValue & 0xC0) >> 6; 
 	}
 
-	// Ergebnis zurückgeben
+	// Ergebnis zurï¿½ckgeben
 	return pair;
 }
 
@@ -559,7 +559,7 @@ void display_Snake(){
 	// Kopf zeichnen
 	draw_setPixel(headX, headY, COLOR_RED);
 
-	// wenn länge =1 dann fertig
+	// wenn lï¿½nge =1 dann fertig
 	if (lenght_Of_Snake == 1) {
 		return;
 	}
@@ -583,13 +583,13 @@ void display_Snake(){
 		} else if (dir == DOWN) {
 		y = y - 1;
 		}
-	// Körpersegment zeichnen
+	// Kï¿½rpersegment zeichnen
 	draw_setPixel(x, y, COLOR_GREEN);
 	
 
 	// restlische segmente verfolgen
 	while (pos != snake_Body.tail) {
-		// Zum vorherigen Segment springen (2 Bit zurück)
+		// Zum vorherigen Segment springen (2 Bit zurï¿½ck)
 		if (pos >= 2) {
 			pos = pos - 2;
 			} else {
@@ -611,13 +611,13 @@ void display_Snake(){
 	
 	}
 
-	// alte Schwanz löschen
+	// alte Schwanz lï¿½schen
 	draw_setPixel(x, y, COLOR_BLACK);
 }
 
 
 bool collision_Detection(){
-	// Prüfe Kollision mit dem spielfeld
+	// Prï¿½fe Kollision mit dem spielfeld
 	if (headX >= FIELD_RIGHT_COLUMN) {
 		return true;
 	}
@@ -632,14 +632,14 @@ bool collision_Detection(){
 		return true;
 	}
 
-	// kollision mit sich selbst prüfen
-	// Wir verfolgen die Schlange rückwärts vom Kopf zum Schwanz
+	// kollision mit sich selbst prï¿½fen
+	// Wir verfolgen die Schlange rï¿½ckwï¿½rts vom Kopf zum Schwanz
 	uint8_t x = headX;
 	uint8_t y = headY;
 	uint16_t position = snake_Body.head;
 
 	while (position != snake_Body.tail) {
-		// Zum vorherigen Bit-Paar springen (2 Bit zurück)
+		// Zum vorherigen Bit-Paar springen (2 Bit zurï¿½ck)
 		if (position >= 2) {
 			position = position - 2;
 			} else {
@@ -660,7 +660,7 @@ bool collision_Detection(){
 			y = y - 1;
 		}
 
-		// Prüfe ob kollision gibt
+		// Prï¿½fe ob kollision gibt
 		if (x == headX && y == headY) {
 			return true;
 		}
@@ -696,21 +696,21 @@ bool did_Snake_Eat(uint8_t foodX, uint8_t foodY){
 
 	// Kopf Position mit Essens Position vergleichen
 	if (headX == foodX && headY == foodY) {
-		// essen aus den display löschen
+		// essen aus den display lï¿½schen
 		draw_setPixel(foodX, foodY, COLOR_GREEN);
 
-		// Schlange um 1 verlängern
+		// Schlange um 1 verlï¿½ngern
 		if (lenght_Of_Snake < MAXIMUM_LENGTH) {
 			lenght_Of_Snake = lenght_Of_Snake + 1;
 		}
 
-		// Flag setzen, damit der Ringbuffer weiß, dass wir gefressen haben
+		// Flag setzen, damit der Ringbuffer weiï¿½, dass wir gefressen haben
 		isFoodEaten = 1;
 
 		eaten = true;
 	}
 
-	// Rückgabe, ob gegessen wurde
+	// Rï¿½ckgabe, ob gegessen wurde
 	return eaten;
 }
 
