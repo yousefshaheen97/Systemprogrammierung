@@ -8,7 +8,7 @@
 
 #include "os_memheap_drivers.h"
 #include "defines.h"      
-
+#include "led_draw.h"
 
 Heap intHeap__ = {
 	.driver     = intSRAM,
@@ -21,21 +21,23 @@ Heap intHeap__ = {
 };
 
 void os_initHeaps(void) {
+	draw_letter('u', 5, 19, COLOR_YELLOW, false, false);
 	 // Interner Heap
 	intHeap__.driver->init();
 	for (size_t i = 0; i < intHeap__.mapSize; ++i) {
 		intHeap__.driver->write(intHeap__.mapStart + i, (MemValue)0x00);
 	}
+	
 	// Externer Heap:
 	extHeap__.driver->init();
 	for (size_t i = 0; i < extHeap__.mapSize; ++i) {
 		extHeap__.driver->write(extHeap__.mapStart + i, (MemValue)0x00);
 	}
-
+	
 }
 
 uint8_t os_getHeapListLength(void) {
-	return 2;  
+	return 1;  
 }
 
 Heap* os_lookupHeap(uint8_t index) {
@@ -44,7 +46,7 @@ Heap* os_lookupHeap(uint8_t index) {
 		} else if (index == 1) {
 		return &extHeap__;
 	}
-	return NULL;
+	return 0;
 }
 
 

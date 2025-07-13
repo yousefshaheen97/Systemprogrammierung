@@ -14,7 +14,8 @@
 int main(void) {
     // Give the operating system a chance to initialize its private data.
     // This also registers and starts the idle program.
-    os_init();
+	
+	os_init();
 	panel_init();
 	panel_initTimer();
 	
